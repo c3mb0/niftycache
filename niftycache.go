@@ -117,17 +117,15 @@ func (nc *Cache) Close() {
 
 func (nc *Cache) handleCallbacks() {
 	done := nc.done
-	leave := false
 	for {
 		select {
 		case <-done:
 			done = nil
-			leave = true
 		default:
 			nc.m.Lock()
 			if nc.callbacks.Length() == 0 {
 				nc.m.Unlock()
-				if leave {
+				if done == nil {
 					nc.wg.Done()
 					return
 				}
