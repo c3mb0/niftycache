@@ -11,7 +11,6 @@ type Cache struct {
 	ttl          time.Duration
 	removeCB     callback
 	setCB        callback
-	updateCB     callback
 	expireCB     callback
 	extendTTL    bool
 	items        map[string]*item
@@ -44,12 +43,6 @@ func createCBClosure(f Callback) callback {
 func RemoveCallback(f Callback) Option {
 	return func(nc *Cache) {
 		nc.removeCB = createCBClosure(f)
-	}
-}
-
-func UpdateCallback(f Callback) Option {
-	return func(nc *Cache) {
-		nc.updateCB = createCBClosure(f)
 	}
 }
 
@@ -223,8 +216,5 @@ func (nc *Cache) Set(key string, value interface{}) {
 	} else {
 		item.update(value)
 		nc.ih.update(item)
-		if nc.updateCB != nil {
-			nc.callbacks.Add(nc.updateCB(key, value))
-		}
 	}
 }

@@ -9,7 +9,6 @@ cache := niftycache.New(10*time.Minute,
 	niftycache.ExpireCallback(cb),
 	niftycache.RemoveCallback(cb),
 	niftycache.SetCallback(cb),
-	niftycache.UpdateCallback(cb),
 	// controls whether a successful cache hit extends the item's ttl (default false)
 	niftycache.ExtendTTLOnHit(),
 	// controls the max amount of items that can be expired at once (default 10000)
