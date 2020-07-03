@@ -154,6 +154,7 @@ func (nc *Cache) Get(key string) (interface{}, bool) {
 	}
 	if nc.extendTTL {
 		item.touch()
+		nc.ih.update(item)
 	}
 	return item.value, true
 }
