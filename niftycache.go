@@ -21,7 +21,8 @@ type Cache struct {
 	maxCallbacks int
 	cbLimiter    chan struct{}
 	done         chan struct{}
-	wg           *sync.WaitGroup
+	wg1          *sync.WaitGroup
+	wg2          *sync.WaitGroup
 	closed       bool
 	callbacks    *queue.Queue
 }
@@ -92,27 +93,29 @@ func New(ttl time.Duration, options ...Option) *Cache {
 		maxCallbacks: 1000,
 		callbacks:    queue.New(),
 		done:         make(chan struct{}),
-		wg:           new(sync.WaitGroup),
+		wg1:          new(sync.WaitGroup),
+		wg2:          new(sync.WaitGroup),
 	}
 	for _, o := range options {
 		o(nc)
 	}
 	nc.cbLimiter = make(chan struct{}, nc.maxCallbacks)
-	nc.wg.Add(2)
+	nc.wg1.Add(2)
 	go nc.handleExpirations()
 	go nc.handleCallbacks()
 	return nc
 }
 
 func (nc *Cache) Close() {
-	close(nc.done)
-	nc.wg.Wait()
 	nc.m.Lock()
+	nc.closed = true
+	nc.m.Unlock()
+	close(nc.done)
+	nc.wg1.Wait()
 	nc.items = nil
 	nc.ih = nil
 	nc.callbacks = nil
-	nc.closed = true
-	nc.m.Unlock()
+	nc.wg2.Wait()
 }
 
 func (nc *Cache) handleCallbacks() {
@@ -126,7 +129,7 @@ func (nc *Cache) handleCallbacks() {
 			if nc.callbacks.Length() == 0 {
 				nc.m.Unlock()
 				if done == nil {
-					nc.wg.Done()
+					nc.wg1.Done()
 					return
 				}
 				time.Sleep(time.Second)
@@ -136,10 +139,10 @@ func (nc *Cache) handleCallbacks() {
 			nc.m.Unlock()
 			cb := out.(func())
 			nc.cbLimiter <- struct{}{}
-			nc.wg.Add(1)
+			nc.wg2.Add(1)
 			go func() {
 				cb()
-				nc.wg.Done()
+				nc.wg2.Done()
 				<-nc.cbLimiter
 			}()
 		}
@@ -153,7 +156,7 @@ func (nc *Cache) handleExpirations() {
 		select {
 		case <-nc.done:
 			t.Stop()
-			nc.wg.Done()
+			nc.wg1.Done()
 			return
 		case <-t.C:
 			nc.m.Lock()
