@@ -136,8 +136,10 @@ func (nc *Cache) handleCallbacks() {
 			nc.m.Unlock()
 			cb := out.(func())
 			nc.cbLimiter <- struct{}{}
+			nc.wg.Add(1)
 			go func() {
 				cb()
+				nc.wg.Done()
 				<-nc.cbLimiter
 			}()
 		}
