@@ -166,6 +166,14 @@ func (nc *Cache) handleExpirations() {
 }
 
 func (nc *Cache) Remove(key string) {
+	nc.remove(key, true)
+}
+
+func (nc *Cache) RemoveNoCallback(key string) {
+	nc.remove(key, false)
+}
+
+func (nc *Cache) remove(key string, callback bool) {
 	nc.m.Lock()
 	defer nc.m.Unlock()
 	if nc.closed {
@@ -177,7 +185,7 @@ func (nc *Cache) Remove(key string) {
 	}
 	delete(nc.items, key)
 	nc.ih.remove(item)
-	if nc.removeCB != nil {
+	if callback && nc.removeCB != nil {
 		nc.callbacks.Add(nc.removeCB(key, item.value))
 	}
 }
@@ -200,6 +208,14 @@ func (nc *Cache) Get(key string) (interface{}, bool) {
 }
 
 func (nc *Cache) Set(key string, value interface{}) {
+	nc.set(key, value, true)
+}
+
+func (nc *Cache) SetNoCallback(key string, value interface{}) {
+	nc.set(key, value, false)
+}
+
+func (nc *Cache) set(key string, value interface{}, callback bool) {
 	nc.m.Lock()
 	defer nc.m.Unlock()
 	if nc.closed {
@@ -210,7 +226,7 @@ func (nc *Cache) Set(key string, value interface{}) {
 		item = newItem(key, value, nc.ttl)
 		nc.items[key] = item
 		nc.ih.push(item)
-		if nc.setCB != nil {
+		if callback && nc.setCB != nil {
 			nc.callbacks.Add(nc.setCB(key, value))
 		}
 	} else {
