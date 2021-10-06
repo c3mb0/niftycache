@@ -13,6 +13,7 @@ type Cache struct {
 	setCB        callback
 	expireCB     callback
 	extendTTL    bool
+	flushExpires bool
 	items        map[string]*item
 	ih           *itemsHeap
 	m            *sync.Mutex
@@ -61,6 +62,12 @@ func ExpireCallback(f Callback) Option {
 func ExtendTTLOnHit() Option {
 	return func(nc *Cache) {
 		nc.extendTTL = true
+	}
+}
+
+func FlushExpiresOnClose() Option {
+	return func(nc *Cache) {
+		nc.flushExpires = true
 	}
 }
 
@@ -149,6 +156,17 @@ func (nc *Cache) handleExpirations() {
 		select {
 		case <-nc.done:
 			t.Stop()
+			if nc.flushExpires {
+				nc.m.Lock()
+				for item := nc.ih.peek(); item != nil; item = nc.ih.peek() {
+					delete(nc.items, item.key)
+					nc.ih.pop()
+					if nc.expireCB != nil {
+						nc.callbacks.Add(nc.expireCB(item.key, item.value))
+					}
+				}
+				nc.m.Unlock()
+			}
 			nc.wg1.Done()
 			return
 		case <-t.C:
